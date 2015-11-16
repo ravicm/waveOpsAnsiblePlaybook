@@ -1,0 +1,12 @@
+--- 
+-
+  hosts: ec2
+  remote_user: ubuntu
+  vars:
+    repo_version: 1.0.1
+  tasks: 
+   - file: "path=/tmp/{{repo_version}} state=directory mode=0755"
+   - git: "repo=https://github.com/ravicm/waveOpsFlaskApp.git dest=/tmp/{{repo_version}}/ version={{repo_version}}"
+   - synchronize: "src=/tmp/{{repo_version}} dest=/home/waveroot/"
+     sudo: yes
+     sudo_user: waveroot
