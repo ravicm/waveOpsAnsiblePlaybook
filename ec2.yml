@@ -1,7 +1,0 @@
----
-- name: create an ec2 instance
-  connection: local
-  hosts: 127.0.0.1
-  file:
-   src: /tmp/a
-   dest: /tmp/b

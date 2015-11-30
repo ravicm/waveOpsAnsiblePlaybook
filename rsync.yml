@@ -1,12 +1,54 @@
 --- 
 -
-  hosts: ec2
-  remote_user: ubuntu
+  hosts: i-bf4d397b
   vars:
-    repo_version: 1.0.1
+    repo_version: cc90a2b582e6159a09f66cd8fd1e2ac010aac524
+    app_name: demoApp
+    app_repo_version_path: "{{app_name}}/{{repo_version}}"
+    git_url: "https://github.com/ravicm/waveOpsFlaskApp.git"
+    deploy_dir: "/home/test1"
+    app_dir: "{{deploy_dir}}/{{app_name}}"
+    version_dir: "{{app_dir}}/{{repo_version}}"
+    deploy_user: waveroot
+    deploy_group: waveroot
+    service_script: bin/demoapp.sh
+
   tasks: 
-   - file: "path=/tmp/{{repo_version}} state=directory mode=0755"
-   - git: "repo=https://github.com/ravicm/waveOpsFlaskApp.git dest=/tmp/{{repo_version}}/ version={{repo_version}}"
-   - synchronize: "src=/tmp/{{repo_version}} dest=/home/waveroot/"
+   #Prepare the local machine
+   - name:  create a directory locally
+     file: "path=/tmp/{{version_dir}} state=directory mode=0755"
+     connection: local
+   - name: get the code from git to local sandbox 
+     git: "repo={{ git_url }} dest=/tmp/{{version_dir}}/ version={{repo_version}}"
+     connection: local
+
+   #Launch an ec2 instance
+   ##name: create a ec2 host now
+
+   #prepare the host
+   ##name: Install system packages 
+   ##name: Install user packages 
+   ## make below apps go into different role
+   ##name: Install application base
+   - name: Install Flask
+     pip: name=flask 
      sudo: yes
-     sudo_user: waveroot
+
+   #deploy the application
+
+   - name: create service directories on remote hosts 
+     file: "path={{deploy_dir}} owner={{deploy_user}} group={{deploy_group}} mode=0755 state=directory"
+     sudo: yes
+
+   - name: Deploy the git files
+     copy: "src=/tmp/{{version_dir}} dest={{app_dir}}"
+     sudo: yes
+     sudo_user: "{{deploy_user}}" 
+
+   - name: Mark service scripts as executable 
+     file: "path={{version_dir}}/{{service_script}}  mode=0755"
+     sudo: yes
+
+   #start the service
+   #- git: "repo=https://github.com/ravicm/waveOpsFlaskApp.git dest=/tmp/{{app_repo_version_path}}/ version={{repo_version}}"
+   #- command: "sudo cp -R /tmp/{{app_repo_version_path}}/ /home/waveroot/{{app_repo_version_path}}/"
