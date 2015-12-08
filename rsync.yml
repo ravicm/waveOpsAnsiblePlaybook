@@ -1,29 +1,47 @@
 --- 
 -
-  hosts: i-bf4d397b
+  hosts: localhost
+  gather_facts: False
   vars:
-    repo_version: cc90a2b582e6159a09f66cd8fd1e2ac010aac524
+    repo_version: HEAD 
     app_name: demoApp
     app_repo_version_path: "{{app_name}}/{{repo_version}}"
     git_url: "https://github.com/ravicm/waveOpsFlaskApp.git"
-    deploy_dir: "/home/test1"
+    deploy_dir: "/home/test2"
     app_dir: "{{deploy_dir}}/{{app_name}}"
     version_dir: "{{app_dir}}/{{repo_version}}"
     deploy_user: waveroot
     deploy_group: waveroot
     service_script: bin/demoapp.sh
+    ami: ami-5189a661 #retrieved from aws page
+    instance_type: t2.micro
+    developer_name: rc 
+    region: "us-west-2"
 
   tasks: 
    #Prepare the local machine
    - name:  create a directory locally
-     file: "path=/tmp/{{version_dir}} state=directory mode=0755"
-     connection: local
-   - name: get the code from git to local sandbox 
-     git: "repo={{ git_url }} dest=/tmp/{{version_dir}}/ version={{repo_version}}"
+     file: "path=/tmp{{version_dir}} state=directory mode=0755"
      connection: local
 
-   #Launch an ec2 instance
-   ##name: create a ec2 host now
+   - name: get the code from git to local sandbox 
+     git: "repo={{ git_url }} dest=/tmp{{version_dir}}/ version={{repo_version}}"
+     connection: local
+
+   - name: create a ec2 host now  
+     ec2:
+       instance_type: t2.micro
+       image: "{{ ami }}"
+       instance_tags:
+             role: "{{app_name}}"
+             version: "{{repo_version}}"
+             owner: "{{ developer_name }}"
+       group:
+            - ssh
+#            - "{{app_name}}"
+       region: "{{region}}"
+       wait: yes
+
 
    #prepare the host
    ##name: Install system packages 
@@ -48,6 +66,9 @@
    - name: Mark service scripts as executable 
      file: "path={{version_dir}}/{{service_script}}  mode=0755"
      sudo: yes
+   
+   - name: start the service now
+     command: "{{version_dir}}/{{service_script}} start" 
 
    #start the service
    #- git: "repo=https://github.com/ravicm/waveOpsFlaskApp.git dest=/tmp/{{app_repo_version_path}}/ version={{repo_version}}"
