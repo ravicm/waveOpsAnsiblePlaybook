@@ -3,7 +3,6 @@
   hosts: localhost
   gather_facts: False
   vars:
-    repo_version: HEAD 
     app_name: demoApp
     app_repo_version_path: "{{app_name}}/{{repo_version}}"
     git_url: "https://github.com/ravicm/waveOpsFlaskApp.git"
@@ -20,13 +19,32 @@
 
   tasks: 
    #Prepare the local machine
+   - name:  set the git repo to be fetched
+     set_fact:
+         repo_version: "{{ version | default('HEAD') }}"
+  
+   - name:  cleaning up before start
+     file: "path=/tmp{{version_dir}} state=absent"
+
    - name:  create a directory locally
      file: "path=/tmp{{version_dir}} state=directory mode=0755"
-     connection: local
 
    - name: get the code from git to local sandbox 
      git: "repo={{ git_url }} dest=/tmp{{version_dir}}/ version={{repo_version}}"
-     connection: local
+
+   - name:  get the hash for git head
+     shell: "cd /tmp{{version_dir}}; git rev-parse HEAD"
+     register: hash 
+     when: ( version is undefined )
+
+   - name: set the repo_version to hash of the head
+     set_fact:
+         repo_version: "{{ hash.stdout }}"
+     when: ( version is undefined )
+
+   - name: rename the HEAD directory to it's hash
+     command: mv /tmp{{app_dir}}/HEAD /tmp{{version_dir}}
+     when: ( version is undefined )
 
    - name: create a ec2 host now  
      ec2:
@@ -38,7 +56,7 @@
              owner: "{{ developer_name }}"
        group:
             - ssh
-#            - "{{app_name}}"
+            - "{{app_name}}"
        region: "{{region}}"
        wait: yes
 
