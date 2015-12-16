@@ -62,6 +62,10 @@
          - "{{app_name}}"
        region: "{{region}}"
        wait: yes
+     register: ec2 
+
+   - name: add new host to hostgroup
+     add_host: hostname={{ec2.instances}} groups=just_created
 
    #prepare the host
    ##name: Install system packages 
