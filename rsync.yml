@@ -42,6 +42,9 @@
          repo_version: "{{ hash.stdout }}"
      when: ( version is undefined )
 
+   - name:  cleaning up before rename 
+     file: "path=/tmp{{version_dir}} state=absent"
+
    - name: rename the HEAD directory to it's hash
      command: mv /tmp{{app_dir}}/HEAD /tmp{{version_dir}}
      when: ( version is undefined )
@@ -55,17 +58,19 @@
              version: "{{repo_version}}"
              owner: "{{ developer_name }}"
        group:
-            - ssh
-            - "{{app_name}}"
+         - ssh
+         - "{{app_name}}"
        region: "{{region}}"
        wait: yes
-
 
    #prepare the host
    ##name: Install system packages 
    ##name: Install user packages 
    ## make below apps go into different role
    ##name: Install application base
+-
+  hosts: "tag_version_{{ repo_version }}"
+  tasks:
    - name: Install Flask
      pip: name=flask 
      sudo: yes
