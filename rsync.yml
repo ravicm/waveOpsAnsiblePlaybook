@@ -9,13 +9,15 @@
     deploy_dir: "/home/test2"
     app_dir: "{{deploy_dir}}/{{app_name}}"
     version_dir: "{{app_dir}}/{{repo_version}}"
-    deploy_user: waveroot
+    deploy_user: ubuntu 
     deploy_group: waveroot
     service_script: bin/demoapp.sh
     ami: ami-5189a661 #retrieved from aws page
     instance_type: t2.micro
     developer_name: rc 
     region: "us-west-2"
+    key_name: "ravic-ubuntu"
+    aws_key_path: "/home/rc/ravic-ubuntu.pem"
 
   tasks: 
    #Prepare the local machine
@@ -51,6 +53,7 @@
 
    - name: create a ec2 host now  
      ec2:
+       key_name: "{{ key_name }}"
        instance_type: t2.micro
        image: "{{ ami }}"
        instance_tags:
@@ -64,8 +67,11 @@
        wait: yes
      register: ec2 
 
+   - name: Wait for SSH to come up
+     wait_for: host={{ec2.instances[0].private_ip}} port=22 delay=60 timeout=320 state=started
+
    - name: add new host to hostgroup
-     add_host: hostname={{ec2.instances}} groups=just_created
+     add_host: hostname={{ec2.instances[0].private_ip}} groups=just_launched ansible_ssh_private_key_file={{aws_key_path}} ansible_user={{deploy_user}}
 
    #prepare the host
    ##name: Install system packages 
@@ -73,8 +79,17 @@
    ## make below apps go into different role
    ##name: Install application base
 -
-  hosts: "tag_version_{{ repo_version }}"
+  hosts: just_launched
+  remote_user: ubuntu
+  vars:
+    deploy_user: ubuntu 
+    deploy_dir: "/home/test2"
+
   tasks:
+   - name: install pip
+     apt: name=python-pip update_cache=yes
+     sudo: yes
+
    - name: Install Flask
      pip: name=flask 
      sudo: yes
@@ -83,16 +98,12 @@
 
    - name: create service directories on remote hosts 
      file: "path={{deploy_dir}} owner={{deploy_user}} group={{deploy_group}} mode=0755 state=directory"
-     sudo: yes
 
    - name: Deploy the git files
      copy: "src=/tmp/{{version_dir}} dest={{app_dir}}"
-     sudo: yes
-     sudo_user: "{{deploy_user}}" 
 
    - name: Mark service scripts as executable 
      file: "path={{version_dir}}/{{service_script}}  mode=0755"
-     sudo: yes
    
    - name: start the service now
      command: "{{version_dir}}/{{service_script}} start" 
